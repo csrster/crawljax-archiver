@@ -30,6 +30,9 @@ import java.time.format.DateTimeFormatter;
  */
 public class CrawlJAXProxyHarvester {
 
+    /**
+     * This class initialises a Firefox browser instance that uses a proxy for all communication.
+     */
     static class FirefoxProxyProvider implements Provider<EmbeddedBrowser> {
 
         private String host;
@@ -56,39 +59,54 @@ public class CrawlJAXProxyHarvester {
     }
 
     public static void main(String[] args) {
-//        CrawljaxConfiguration.CrawljaxConfigurationBuilder builder = CrawljaxConfiguration.builderFor("https://instagram.com/alternativet_/");
-        CrawljaxConfiguration.CrawljaxConfigurationBuilder builder = CrawljaxConfiguration.builderFor("https://twitter.com/venstredk");
+        CrawljaxConfiguration.CrawljaxConfigurationBuilder builder = getTwitterBuilder();
         builder.setBrowserConfig(new BrowserConfiguration(EmbeddedBrowser.BrowserType.FIREFOX, 1, new FirefoxProxyProvider("localhost", 4338)));
-        builder.setMaximumStates(10);
-        builder.setMaximumDepth(1);
         LocalDateTime now = LocalDateTime.now();
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
         final File outputDirectory = new File(System.getProperty("user.home") + "/crawloverview/" + now.format(dateTimeFormatter));
-        System.out.println("Archiving in " + outputDirectory.getAbsolutePath());
         HostInterface hostInterface = new HostInterfaceImpl(outputDirectory, null);
         final CrawlOverview crawlOverview = new CrawlOverview(hostInterface);
         builder.addPlugin(crawlOverview);
-        builder.addPlugin(new ScrollDownPlugin());
-        builder.crawlRules().setInputSpec(new InputSpecification());
-        //builder.crawlRules().click("a").withAttribute("class", "mcmPhotoFrontside");
-        //builder.crawlRules().click("p").underXPath("//div[@class='content']");
-        //builder.crawlRules().clickElementsInRandomOrder(true);
         CrawljaxRunner crawljax = new CrawljaxRunner(builder.build());
         crawljax.call();
     }
 
+    private static CrawljaxConfiguration.CrawljaxConfigurationBuilder getTwitterBuilder() {
+        CrawljaxConfiguration.CrawljaxConfigurationBuilder builder = CrawljaxConfiguration.builderFor("https://twitter.com/venstredk");
+        builder.addPlugin(new ScrollDownPlugin());
+        builder.setMaximumStates(50);
+        builder.setMaximumDepth(1);
+        builder.crawlRules().setInputSpec(new InputSpecification());
+        builder.crawlRules().click("p").underXPath("//div[@class='content']");
+        //builder.crawlRules().clickElementsInRandomOrder(true);
+        return builder;
+    }
+
+    private static CrawljaxConfiguration.CrawljaxConfigurationBuilder getInstagramBuilder() {
+        CrawljaxConfiguration.CrawljaxConfigurationBuilder builder = CrawljaxConfiguration.builderFor("https://instagram.com/alternativet_/");
+        builder.setMaximumStates(50);
+        builder.setMaximumDepth(2);
+        builder.crawlRules().click("A").withAttribute("class", "pgmiImageLink");
+        //builder.crawlRules().click("a").withAttribute("class", "mcmPhotoFrontside");
+        //builder.crawlRules().click("a").withAttribute("class", "PhotoGridMoreButton");
+        builder.addPlugin(new ScrollDownPlugin());
+        return builder;
+    }
+
+
+
+    /**
+     * An attempt to build a plugin which scrolls endlessly down on a page.
+     */
     public static class ScrollDownPlugin implements OnNewStatePlugin, OnUrlLoadPlugin {
 
         public void onNewState(CrawlerContext context, StateVertex newState) {
-               context.getBrowser().executeJavaScript("window.scrollTo(0,document.body.scrollHeight);");
+            context.getBrowser().executeJavaScript("window.scrollBy(0,document.body.scrollHeight);");
         }
 
         public void onUrlLoad(CrawlerContext context) {
-            context.getBrowser().executeJavaScript("window.scrollTo(0,document.body.scrollHeight);");
-            context.getBrowser().executeJavaScript("document.body.initEvent('click', 'true', 'true');");
+            context.getBrowser().executeJavaScript("window.scrollBy(0,document.body.scrollHeight);");
         }
-
-
     }
 
 }
